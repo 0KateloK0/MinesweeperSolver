@@ -10,12 +10,12 @@ target_compile_definitions(asio INTERFACE ASIO_STANDALONE ASIO_NO_DEPRECATED)
 if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
     target_link_libraries(asio INTERFACE pthread)
 elseif (${CMAKE_SYSTEM_NAME} MATCHES "Windows")
-    target_link_libraries(asio INTERFACE ws2_32)
+    target_link_libraries(asio INTERFACE ws2_32 wsock32)
 endif ()
 
-target_precompile_headers(asio INTERFACE "${ASIO_LIBRARY_PATH}/asio.hpp") # I am really unsure if it is doing anything..
+#target_precompile_headers(asio INTERFACE "${ASIO_LIBRARY_PATH}/asio.hpp") # I am really unsure if it is doing anything..
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 
 add_executable(server server.cpp)
 target_link_libraries(server asio)
