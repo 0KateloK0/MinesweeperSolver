@@ -18,7 +18,7 @@ queue.prototype.push = function(data) {
   if (!this.first){
     this.first = node;
   } else {
-    n = this.first;
+    let n = this.first;
     while (n.next) {
       n = n.next;
     }
@@ -30,7 +30,7 @@ queue.prototype.push = function(data) {
 };
 
 queue.prototype.pop = function() {
-  temp = this.first;
+  let temp = this.first;
   this.first = this.first.next;
   this.size -= 1;
   return temp;
@@ -51,12 +51,19 @@ class Cell extends React.Component {
 	}
 	constructor (props) {
 		super(props);
-		this.state = {
-			status: Cell.CELL_CLOSED,
-			inners: false
-			/*status: props.bomb ? Cell.CELL_BOMBED : Cell.CELL_OPENED,
-			inners: !props.bomb*/
-		};
+		if (props.CELL_OPENED) {
+			this.state = {
+				status: props.bomb ? Cell.CELL_BOMBED : Cell.CELL_OPENED,
+				inners: !props.bomb
+			}
+		}
+		else {
+				this.state = {
+				status: Cell.CELL_CLOSED,
+				inners: false
+			};
+		}
+
 		this.bomb = props.bomb;
 		this.inners = props.inners;
 		this.cellId = props.cellId;
@@ -100,7 +107,10 @@ class Game extends React.Component {
 			
 			this.gameField.push([]);
 			for (let j = 0; j < props.width; ++j) {
-				this.gameField[i].push(Math.random() > 0.8);
+				this.gameField[i].push({
+					bomb: Math.random() > 0.8,
+					status: Cell.CELL_CLOSED
+				});
 				
 			}
 		}
@@ -132,7 +142,7 @@ class Game extends React.Component {
 		ans += i + 1 < this.height && j - 1 >= 0 && this.gameField[i + 1][j - 1];
 		ans += i + 1 < this.height && this.gameField[i + 1][j];
 		ans += i + 1 < this.height && j + 1 < this.width && this.gameField[i + 1][j + 1];*/
-		return this.getAdjEls(i, j).length;
+		return this.getAdjEls(i, j).filter((a) => {this.gameField[a[0]][a[1]].bomb}).length;
 	}
 	propagateCellClick (i, j) {
 		// BFS
@@ -140,10 +150,17 @@ class Game extends React.Component {
 		q.push([i, j]);
 		let used = {};
 		while (q.size) {
-			used[q.first] = true;
+			if (used[q.first.data.join('_')]) {
+				q.pop();
+				continue;
+			}
+			used[q.first.data.join('_')] = true;
 			let c = q.first.data;
 
-			this.field[c[0]][c[1]].onClick();
+			this.gameField[c[0]][c[1]] = {
+				bomb: this.gameField[c[0]][c[1]],
+				status: Cell.CELL_OPENED
+			}
 
 			q.pop();
 
@@ -151,16 +168,17 @@ class Game extends React.Component {
 				continue;
 
 			// x and y are swapped here because im stupid and lazy
-			for (let [x, y] of this.getAdjEls(q.first[0], q.first[1])) {	
-				if (!used[[x, y]]) {
+			for (let [x, y] of this.getAdjEls(c[0], c[1])) {	
+				if (!used[[x, y].join('_')]) {
 					q.push([x, y]);
 				}
 			}
 		}
+		this.render();
 	}
 	handleClick (e) {
 		let [i, j] = e.target.getAttribute('cellid').split('_').map(Number);
-		if (this.gameField[i][j]) {
+		if (this.gameField[i][j].bomb) {
 			// you lose
 		}
 		else {
@@ -174,7 +192,8 @@ class Game extends React.Component {
 			for (let j = 0; j < this.width; ++j) {
 				this.field[i].push(<Cell 
 					inners={this.countInners(i, j)}
-					bomb={this.gameField[i][j]}
+					bomb={this.gameField[i][j].bomb}
+					status={this.gameField[i][j].status}
 					cellId={`${i}_${j}`}
 					key={`cell_${i}_${j}`}></Cell>);
 			}
