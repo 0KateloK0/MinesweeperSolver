@@ -38,6 +38,15 @@ queue.prototype.pop = function() {
 
 /* ENDING from Stack Overflow cause I was lazy */
 
+
+// As of right now I'm writing MVP. Player should be able to play this version
+// Map would be generated here, without any checks regarding solvability
+// It should look somewhat pretty, and should be expandable
+// By this I mean that AI should also be able to control this version of the game from server
+// But that is a story for another time.
+
+
+// DESTROY!
 class Cell extends React.Component {
 	static CELL_CLOSED = 0;
 	static CELL_OPENED = 1;
@@ -49,65 +58,20 @@ class Cell extends React.Component {
 		2: "flagged",
 		3: "bombed"
 	}
-	constructor (props) {
-		super(props);
-		if (props.CELL_OPENED) {
-			this.state = {
-				status: props.bomb ? Cell.CELL_BOMBED : Cell.CELL_OPENED,
-				inners: !props.bomb
-			}
-		}
-		else {
-				this.state = {
-				status: Cell.CELL_CLOSED,
-				inners: false
-			};
-		}
-
-		this.bomb = props.bomb;
-		this.inners = props.inners;
-		this.cellId = props.cellId;
-	}
-	render () {
-		return (
-			<div className={"field__cell field__cell_" + Cell.statusMap[this.state.status]}
-				onClick={this.handleCellClick.bind(this)}
-				onContextMenu={this.handleContextClick.bind(this)}
-				cellid={this.cellId}
-			>
-			{
-				this.state.inners ? this.inners : ''
-			}
-			</div>
-			);
-	}
-	openCell () {
-		this.setState({ status: Cell.CELL_OPENED });
-		if (!this.bomb) {
-			this.setState({
-				inners: true
-			})
-		}
-		this.render();
-	}
-	handleCellClick (e) {
-		this.openCell();
-	}
-	handleContextClick (e) {
-		this.setState({ status: Cell.CELL_FLAGGED });
-	}
 }
 
 class Game extends React.Component {
 	constructor (props) {
 		super(props);
 		
-		this.gameField = [];
+		this.state = {
+			gameField: []
+		}
 		for (let i = 0; i < props.height; ++i) {
 			
-			this.gameField.push([]);
+			this.state.gameField.push([]);
 			for (let j = 0; j < props.width; ++j) {
-				this.gameField[i].push({
+				this.state.gameField[i].push({
 					bomb: Math.random() > 0.8,
 					status: Cell.CELL_CLOSED
 				});
@@ -122,14 +86,14 @@ class Game extends React.Component {
 	}
 	getAdjEls (i, j) {
 		let res = [];
-		if (i - 1 >= 0 && j - 1 >= 0 && this.gameField[i - 1][j - 1]) 					res.push([i - 1, j - 1]);
-		if (i - 1 >= 0 && this.gameField[i - 1][j]) 									res.push([i - 1, j]);
-		if (i - 1 >= 0 && j + 1 < this.width && this.gameField[i - 1][j + 1]) 			res.push([i - 1, j + 1]);
-		if (j - 1 >= 0 && this.gameField[i][j - 1]) 									res.push([i, j - 1]);
-		if (j + 1 < this.width && this.gameField[i][j + 1]) 							res.push([i, j + 1]);
-		if (i + 1 < this.height && j - 1 >= 0 && this.gameField[i + 1][j - 1]) 			res.push([i + 1, j - 1]);
-		if (i + 1 < this.height && this.gameField[i + 1][j]) 							res.push([i + 1, j]);
-		if (i + 1 < this.height && j + 1 < this.width && this.gameField[i + 1][j + 1]) 	res.push([i + 1, j + 1]);
+		if (i - 1 >= 0 && j - 1 >= 0) 					res.push([i - 1, j - 1]);
+		if (i - 1 >= 0) 								res.push([i - 1, j]);
+		if (i - 1 >= 0 && j + 1 < this.width) 			res.push([i - 1, j + 1]);
+		if (j - 1 >= 0) 								res.push([i, j - 1]);
+		if (j + 1 < this.width) 						res.push([i, j + 1]);
+		if (i + 1 < this.height && j - 1 >= 0) 			res.push([i + 1, j - 1]);
+		if (i + 1 < this.height) 						res.push([i + 1, j]);
+		if (i + 1 < this.height && j + 1 < this.width) 	res.push([i + 1, j + 1]);
 		return res;
 	}
 	countInners (i, j) {
@@ -142,9 +106,11 @@ class Game extends React.Component {
 		ans += i + 1 < this.height && j - 1 >= 0 && this.gameField[i + 1][j - 1];
 		ans += i + 1 < this.height && this.gameField[i + 1][j];
 		ans += i + 1 < this.height && j + 1 < this.width && this.gameField[i + 1][j + 1];*/
-		return this.getAdjEls(i, j).filter((a) => {this.gameField[a[0]][a[1]].bomb}).length;
+		return this.getAdjEls(i, j).filter(a => this.state.gameField[a[0]][a[1]].bomb).length;
 	}
 	propagateCellClick (i, j) {
+
+		let cpy = this.state.gameField;
 		// BFS
 		let q = new queue();
 		q.push([i, j]);
@@ -157,10 +123,15 @@ class Game extends React.Component {
 			used[q.first.data.join('_')] = true;
 			let c = q.first.data;
 
-			this.gameField[c[0]][c[1]] = {
-				bomb: this.gameField[c[0]][c[1]],
+			if (cpy[c[0]][c[1]].bomb || cpy[c[0]][c[1]].status == Cell.CELL_OPENED) {
+				q.pop();
+				continue;
+			}
+			cpy[c[0]][c[1]] = {
+				bomb: this.state.gameField[c[0]][c[1]].bomb,
 				status: Cell.CELL_OPENED
 			}
+
 
 			q.pop();
 
@@ -174,28 +145,65 @@ class Game extends React.Component {
 				}
 			}
 		}
+		this.setState({
+			gameField: cpy
+		});
 		this.render();
 	}
 	handleClick (e) {
 		let [i, j] = e.target.getAttribute('cellid').split('_').map(Number);
-		if (this.gameField[i][j].bomb) {
+		if (this.state.gameField[i][j].bomb) {
 			// you lose
 		}
-		else {
+		else if (this.state.gameField[i][j].status == Cell.CELL_OPENED) {
+			// check if its full, then propagate nearest cells
+			if (this.countInners(i, j) == 
+					this.getAdjEls(i, j).reduce((a, b) => a + (this.state.gameField[b[0]][b[1]].status == Cell.CELL_FLAGGED), 0)) {
+				this.getAdjEls(i, j).map(a => this.propagateCellClick(a[0], a[1]));
+			}
+		}
+		else if (this.state.gameField[i][j].status != Cell.CELL_FLAGGED) {
 			this.propagateCellClick(i, j);
 		}
+	}
+	handleContextClick (e) {
+		e.preventDefault();
+		let [i, j] = e.target.getAttribute('cellid').split('_').map(Number);
+		let cpy = this.state.gameField;
+
+		if (this.state.gameField[i][j].status == Cell.CELL_FLAGGED)
+			cpy[i][j].status = Cell.CELL_CLOSED;
+		else if (this.state.gameField[i][j].status == Cell.CELL_CLOSED)
+			cpy[i][j].status = Cell.CELL_FLAGGED;
+
+		this.setState({
+			gameField: cpy
+		})
 	}
 	render () {
 		this.field = [];
 		for (let i = 0; i < this.height; ++i) {
 			this.field.push([]);
 			for (let j = 0; j < this.width; ++j) {
-				this.field[i].push(<Cell 
+				/*this.field[i].push(<Cell 
 					inners={this.countInners(i, j)}
-					bomb={this.gameField[i][j].bomb}
-					status={this.gameField[i][j].status}
+					bomb={this.state.gameField[i][j].bomb}
+					status={this.state.gameField[i][j].status}
 					cellId={`${i}_${j}`}
-					key={`cell_${i}_${j}`}></Cell>);
+					key={`cell_${i}_${j}`}></Cell>);*/
+					let c = this.countInners(i, j);
+					this.field[i].push(
+						<div className={`field__cell field__cell_${Cell.statusMap[this.state.gameField[i][j].status]}`}
+							/*onClick={this.handleCellClick.bind(this)}
+							onContextMenu={this.handleContextClick.bind(this)}*/
+							cellid={`${i}_${j}`}
+							style={{
+								fontSize: this.state.gameField[i][j].status == Cell.CELL_OPENED ? 'inherit' : 0
+							}}
+							key={`${i}_${j}`}
+						>
+						{ this.state.gameField[i][j].bomb ? '' : (c ? c : 0) }
+						</div>);
 			}
 		}
 
@@ -203,7 +211,7 @@ class Game extends React.Component {
 			style={{
 				gridTemplateColumns: `repeat(${this.width}, 1fr)`
 			}} 
-			onContextMenu={(e)=> e.preventDefault()}
+			onContextMenu={this.handleContextClick.bind(this)}
 			onClick={this.handleClick.bind(this)}
 		>
 			{ this.field }
@@ -213,6 +221,39 @@ class Game extends React.Component {
 	}
 }
 
+/*class Test2 extends React.Component {
+	constructor (props) {
+		super(props);
+		this.state = {
+			k: props.k
+		}
+	}
+	render () {
+		return (<span>{this.props.k}</span>);
+	}
+}
+
+class Test extends React.Component {
+	constructor (props) {
+		super(props);
+		this.state = {
+			clicked: false
+		}
+	}
+	render () {
+		let cl = this.state.clicked;
+		return (<div onClick={(e => {
+			this.setState({
+				clicked: !cl
+			});
+			this.render();
+		}).bind(this)}>
+			<Test2 k={this.state.clicked ? 1 : 0}></Test2>
+			</div>);
+	}
+
+}*/
+
 class App extends React.Component {
 	constructor (props) {
 		super(props);
@@ -220,6 +261,7 @@ class App extends React.Component {
 	render () {
 		return (
 			<div className="wrapper">
+				{/*<Test></Test>*/}
 				<Game width="20" height="40"></Game>
 			</div>
 		);
