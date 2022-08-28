@@ -45,6 +45,7 @@ queue.prototype.pop = function() {
 // By this I mean that AI should also be able to control this version of the game from server
 // But that is a story for another time.
 
+let Info = props => <div className="game-info">{props.remainingBombs}</div>;
 
 // DESTROY!
 class Cell extends React.Component {
@@ -65,24 +66,25 @@ class Game extends React.Component {
 		super(props);
 		
 		this.state = {
-			gameField: []
+			gameField: [],
+			remainingBombs: 0
 		}
 		for (let i = 0; i < props.height; ++i) {
-			
 			this.state.gameField.push([]);
 			for (let j = 0; j < props.width; ++j) {
+				let bomb = Math.random() > 0.8;
 				this.state.gameField[i].push({
-					bomb: Math.random() > 0.8,
+					bomb,
 					status: Cell.CELL_CLOSED
 				});
-				
+				if (bomb) {
+					++this.state.remainingBombs;
+				}
 			}
 		}
 
 		this.width = props.width;
 		this.height = props.height;
-
-		// this.cellId = props.cellId;
 	}
 	getAdjEls (i, j) {
 		let res = [];
@@ -97,19 +99,9 @@ class Game extends React.Component {
 		return res;
 	}
 	countInners (i, j) {
-		/*let ans = 0;
-		ans += i - 1 >= 0 && j - 1 >= 0 && this.gameField[i - 1][j - 1];
-		ans += i - 1 >= 0 && this.gameField[i - 1][j];
-		ans += i - 1 >= 0 && j + 1 < this.width && this.gameField[i - 1][j + 1];
-		ans += j - 1 >= 0 && this.gameField[i][j - 1];
-		ans += j + 1 < this.width && this.gameField[i][j + 1];
-		ans += i + 1 < this.height && j - 1 >= 0 && this.gameField[i + 1][j - 1];
-		ans += i + 1 < this.height && this.gameField[i + 1][j];
-		ans += i + 1 < this.height && j + 1 < this.width && this.gameField[i + 1][j + 1];*/
 		return this.getAdjEls(i, j).filter(a => this.state.gameField[a[0]][a[1]].bomb).length;
 	}
 	propagateCellClick (i, j) {
-
 		let cpy = this.state.gameField;
 		// BFS
 		let q = new queue();
@@ -170,14 +162,19 @@ class Game extends React.Component {
 		e.preventDefault();
 		let [i, j] = e.target.getAttribute('cellid').split('_').map(Number);
 		let cpy = this.state.gameField;
-
-		if (this.state.gameField[i][j].status == Cell.CELL_FLAGGED)
+		let remBCPY = this.state.remainingBombs;
+		if (this.state.gameField[i][j].status == Cell.CELL_FLAGGED) {
+			++remBCPY;
 			cpy[i][j].status = Cell.CELL_CLOSED;
-		else if (this.state.gameField[i][j].status == Cell.CELL_CLOSED)
+		}
+		else if (this.state.gameField[i][j].status == Cell.CELL_CLOSED) {
+			--remBCPY;
 			cpy[i][j].status = Cell.CELL_FLAGGED;
+		}
 
 		this.setState({
-			gameField: cpy
+			gameField: cpy,
+			remainingBombs: remBCPY
 		})
 	}
 	render () {
@@ -185,17 +182,9 @@ class Game extends React.Component {
 		for (let i = 0; i < this.height; ++i) {
 			this.field.push([]);
 			for (let j = 0; j < this.width; ++j) {
-				/*this.field[i].push(<Cell 
-					inners={this.countInners(i, j)}
-					bomb={this.state.gameField[i][j].bomb}
-					status={this.state.gameField[i][j].status}
-					cellId={`${i}_${j}`}
-					key={`cell_${i}_${j}`}></Cell>);*/
 					let c = this.countInners(i, j);
 					this.field[i].push(
 						<div className={`field__cell field__cell_${Cell.statusMap[this.state.gameField[i][j].status]}`}
-							/*onClick={this.handleCellClick.bind(this)}
-							onContextMenu={this.handleContextClick.bind(this)}*/
 							cellid={`${i}_${j}`}
 							style={{
 								fontSize: this.state.gameField[i][j].status == Cell.CELL_OPENED ? 'inherit' : 0
@@ -216,43 +205,14 @@ class Game extends React.Component {
 		>
 			{ this.field }
 			</div>);
-		return field;
-
+		return (
+			<div className="game-wrapper">
+				<Info remainingBombs={this.state.remainingBombs}/>
+				{field}
+			</div>
+			)
 	}
 }
-
-/*class Test2 extends React.Component {
-	constructor (props) {
-		super(props);
-		this.state = {
-			k: props.k
-		}
-	}
-	render () {
-		return (<span>{this.props.k}</span>);
-	}
-}
-
-class Test extends React.Component {
-	constructor (props) {
-		super(props);
-		this.state = {
-			clicked: false
-		}
-	}
-	render () {
-		let cl = this.state.clicked;
-		return (<div onClick={(e => {
-			this.setState({
-				clicked: !cl
-			});
-			this.render();
-		}).bind(this)}>
-			<Test2 k={this.state.clicked ? 1 : 0}></Test2>
-			</div>);
-	}
-
-}*/
 
 class App extends React.Component {
 	constructor (props) {
