@@ -47,6 +47,57 @@ queue.prototype.pop = function() {
 
 let Info = props => <div className="game-info">{props.remainingBombs}</div>;
 
+function getAdjEls (width, height, i, j) {
+	let res = [];
+	if (i - 1 >= 0 && j - 1 >= 0) 			res.push([i - 1, j - 1]);
+	if (i - 1 >= 0) 						res.push([i - 1, j]);
+	if (i - 1 >= 0 && j + 1 < width) 		res.push([i - 1, j + 1]);
+	if (j - 1 >= 0) 						res.push([i, j - 1]);
+	if (j + 1 < width) 						res.push([i, j + 1]);
+	if (i + 1 < height && j - 1 >= 0) 		res.push([i + 1, j - 1]);
+	if (i + 1 < height) 					res.push([i + 1, j]);
+	if (i + 1 < height && j + 1 < width) 	res.push([i + 1, j + 1]);
+	return res;
+}
+
+function countInners (field, filter, i, j) {
+	return getAdjEls(field[0].length, field.length, i, j).filter(filter).length;
+}
+
+function GameField (props) {
+	const gameField = props.gameField;
+	const height = gameField.length;
+	const width = gameField[0].length; // there is no better method probably anyway
+	let field = [];
+	for (let i = 0; i < height; ++i) {
+		field.push([]);
+		for (let j = 0; j < width; ++j) {
+			let c = countInners(gameField, a => gameField[a[0]][a[1]].bomb, i, j);
+			field[i].push(
+				<div className={`field__cell field__cell_${Cell.statusMap[gameField[i][j].status]}`}
+					cellid={`${i}_${j}`}
+					style={{
+						fontSize: gameField[i][j].status == Cell.CELL_OPENED ? 'inherit' : 0
+					}}
+					key={`${i}_${j}`}
+				>
+				{ gameField[i][j].bomb ? '' : (c ? c : '') }
+				</div>);
+		}
+	}
+
+	return (
+		<div className="field" 
+			style={{
+				gridTemplateColumns: `repeat(${width}, 1fr)`
+			}} 
+			onContextMenu={props.handleContextClick}
+			onClick={props.handleClick}
+		>
+			{ field }
+		</div>);
+}
+
 // DESTROY!
 class Cell extends React.Component {
 	static CELL_CLOSED = 0;
@@ -62,47 +113,58 @@ class Cell extends React.Component {
 }
 
 class Game extends React.Component {
+	static GAME_NOTSTARTED = 0;
+	static GAME_GOING = 1;
+	static GAME_WON = 2;
+	static GAME_LOST = 3;
 	constructor (props) {
 		super(props);
 		
 		this.state = {
 			gameField: [],
-			remainingBombs: 0
-		}
-		for (let i = 0; i < props.height; ++i) {
-			this.state.gameField.push([]);
-			for (let j = 0; j < props.width; ++j) {
-				let bomb = Math.random() > 0.8;
-				this.state.gameField[i].push({
-					bomb,
-					status: Cell.CELL_CLOSED
-				});
-				if (bomb) {
-					++this.state.remainingBombs;
-				}
-			}
+			remainingBombs: 0,
+			remainingCells: 0,
+			status: Game.GAME_NOTSTARTED
 		}
 
 		this.width = props.width;
 		this.height = props.height;
+		this.bombsAmount = props.bombsAmount;
 	}
+
+	generateField () {
+		let gameField = [];
+		for (let i = 0; i < this.height; ++i) {
+			gameField.push([]);
+			for (let j = 0; j < this.width; ++j) {
+				gameField[i].push({
+					bomb: false,
+					status: Cell.CELL_CLOSED
+				});
+			}
+		}
+		let y, x;
+		for (let i = 0; i < this.bombsAmount; ++i) {
+			do {
+				y = Math.floor(Math.random() * (this.height - 1));
+				x = Math.floor(Math.random() * (this.width - 1));
+			} while (gameField[y][x].bomb);
+			gameField[y][x].bomb = true;
+		}
+		return gameField;
+	}
+
 	getAdjEls (i, j) {
-		let res = [];
-		if (i - 1 >= 0 && j - 1 >= 0) 					res.push([i - 1, j - 1]);
-		if (i - 1 >= 0) 								res.push([i - 1, j]);
-		if (i - 1 >= 0 && j + 1 < this.width) 			res.push([i - 1, j + 1]);
-		if (j - 1 >= 0) 								res.push([i, j - 1]);
-		if (j + 1 < this.width) 						res.push([i, j + 1]);
-		if (i + 1 < this.height && j - 1 >= 0) 			res.push([i + 1, j - 1]);
-		if (i + 1 < this.height) 						res.push([i + 1, j]);
-		if (i + 1 < this.height && j + 1 < this.width) 	res.push([i + 1, j + 1]);
-		return res;
+		return getAdjEls(this.width, this.height, i, j);
 	}
-	countInners (i, j) {
-		return this.getAdjEls(i, j).filter(a => this.state.gameField[a[0]][a[1]].bomb).length;
+
+	countInners (i, j, field) {
+		if (!field) field = this.state.gameField;
+		return countInners(field, a => field[a[0]][a[1]].bomb, i, j);
 	}
+
 	propagateCellClick (i, j) {
-		let cpy = this.state.gameField;
+		let cpy = this.state.gameField.slice();
 		// BFS
 		let q = new queue();
 		q.push([i, j]);
@@ -142,10 +204,53 @@ class Game extends React.Component {
 		});
 		this.render();
 	}
+
+	startTheGame () {
+		let i = Math.floor(Math.random() * (this.height - 1)); // temporary and incorrect
+		let j = Math.floor(Math.random() * (this.width - 1));
+		let gameField = this.generateField();
+		while (this.countInners(i, j, gameField) != 0) {
+			gameField = this.generateField();
+		}
+		this.setState({
+			gameField,
+			status: Game.GAME_GOING,
+			remainingBombs: this.bombsAmount,
+			remainingCells: this.width * this.height,
+		});
+		// this.propagateCellClick(i, j);
+	}
+
+	loseTheGame () {
+		// show every mine
+		let cpy = this.state.gameField.slice();
+		for (let i = 0; i < this.height; ++i) {
+			for (let j = 0; j < this.width; ++j) {
+				if (cpy[i][j].bomb && cpy[i][j].status != Cell.CELL_FLAGGED)
+					cpy[i][j].status = Cell.CELL_BOMBED;
+			}
+		}
+		this.setState({
+			status: Game.GAME_LOST,
+			gameField: cpy
+		})
+	}
+
+	winTheGame () {
+		// actually nothing should be done here:)
+		this.setState({
+			status: Game.GAME_WON
+		});
+	}
+
+	restartTheGame () {
+
+	}
+
 	handleClick (e) {
 		let [i, j] = e.target.getAttribute('cellid').split('_').map(Number);
 		if (this.state.gameField[i][j].bomb) {
-			// you lose
+			this.loseTheGame();
 		}
 		else if (this.state.gameField[i][j].status == Cell.CELL_OPENED) {
 			// check if its full, then propagate nearest cells
@@ -153,64 +258,74 @@ class Game extends React.Component {
 					this.getAdjEls(i, j).reduce((a, b) => a + (this.state.gameField[b[0]][b[1]].status == Cell.CELL_FLAGGED), 0)) {
 				this.getAdjEls(i, j).map(a => this.propagateCellClick(a[0], a[1]));
 			}
+			else {
+				// check for correctness and lose if it's incorrect (there are more bombs, or they are in wrong places)
+				// this.loseTheGame();
+			}
 		}
 		else if (this.state.gameField[i][j].status != Cell.CELL_FLAGGED) {
 			this.propagateCellClick(i, j);
 		}
+
+		if (this.state.remainingCells == 0 && this.state.remainingBombs == 0) {
+			this.winTheGame();
+		}
 	}
+
 	handleContextClick (e) {
 		e.preventDefault();
 		let [i, j] = e.target.getAttribute('cellid').split('_').map(Number);
-		let cpy = this.state.gameField;
+		let cpy = this.state.gameField.slice();
 		let remBCPY = this.state.remainingBombs;
+		let remCCPY = this.state.remainingCells;
 		if (this.state.gameField[i][j].status == Cell.CELL_FLAGGED) {
 			++remBCPY;
+			++remCCPY;
 			cpy[i][j].status = Cell.CELL_CLOSED;
 		}
 		else if (this.state.gameField[i][j].status == Cell.CELL_CLOSED) {
 			--remBCPY;
+			--remCCPY;
 			cpy[i][j].status = Cell.CELL_FLAGGED;
 		}
 
 		this.setState({
 			gameField: cpy,
-			remainingBombs: remBCPY
-		})
+			remainingBombs: remBCPY,
+			remainingCells: remCCPY,
+		});
 	}
-	render () {
-		this.field = [];
-		for (let i = 0; i < this.height; ++i) {
-			this.field.push([]);
-			for (let j = 0; j < this.width; ++j) {
-					let c = this.countInners(i, j);
-					this.field[i].push(
-						<div className={`field__cell field__cell_${Cell.statusMap[this.state.gameField[i][j].status]}`}
-							cellid={`${i}_${j}`}
-							style={{
-								fontSize: this.state.gameField[i][j].status == Cell.CELL_OPENED ? 'inherit' : 0
-							}}
-							key={`${i}_${j}`}
-						>
-						{ this.state.gameField[i][j].bomb ? '' : (c ? c : 0) }
-						</div>);
-			}
-		}
 
-		let field = (<div className="field" 
-			style={{
-				gridTemplateColumns: `repeat(${this.width}, 1fr)`
-			}} 
-			onContextMenu={this.handleContextClick.bind(this)}
-			onClick={this.handleClick.bind(this)}
-		>
-			{ this.field }
-			</div>);
-		return (
-			<div className="game-wrapper">
-				<Info remainingBombs={this.state.remainingBombs}/>
-				{field}
-			</div>
-			)
+	render () {
+		let field = [];
+		switch (this.state.status) {
+			case Game.GAME_GOING:
+				return (
+					<div className="game-wrapper">
+						<Info remainingBombs={this.state.remainingBombs}/>
+						<GameField 
+							gameField={this.state.gameField}
+							handleClick={this.handleClick.bind(this)}
+							handleContextClick={this.handleContextClick.bind(this)}
+							/>
+					</div>
+					);
+			case Game.GAME_WON:
+				return (<div className="game-wrapper" onClick={this.restartTheGame.bind(this)}>
+						<h1>Congratulations! You've just won! Now go out there and beat the shit outta this life!</h1>
+					</div>);
+			case Game.GAME_LOST:
+				return (<div className="game-wrapper" onClick={this.restartTheGame.bind(this)}>
+						<h1>I'm truly sorry to see you lose. But as an old saying goes: "Defeat is just a mere obstacle on a journey to success"</h1>
+						<GameField 
+							gameField={this.state.gameField}
+						/>
+					</div>);
+			case Game.GAME_NOTSTARTED:
+				return (<div className="game-wrapper" onClick={this.startTheGame.bind(this)}>
+						<h1>Shall we begin?</h1>
+					</div>);
+		}
 	}
 }
 
@@ -221,8 +336,7 @@ class App extends React.Component {
 	render () {
 		return (
 			<div className="wrapper">
-				{/*<Test></Test>*/}
-				<Game width="20" height="40"></Game>
+				<Game width="20" height="30" bombsAmount="150"></Game>
 			</div>
 		);
 	}
