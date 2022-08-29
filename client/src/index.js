@@ -260,8 +260,10 @@ class Game extends React.Component {
 		});
 	}
 
-	restartTheGame () {
-
+	restartTheGame (i, j) {
+		this.setState({
+			status: Game.GAME_NOTSTARTED
+		});
 	}
 
 	handleClick (e, i, j) {
@@ -317,7 +319,6 @@ class Game extends React.Component {
 	}
 
 	render () {
-		let field = [];
 		switch (this.state.status) {
 			case Game.GAME_GOING:
 				return (
@@ -331,16 +332,24 @@ class Game extends React.Component {
 					</div>
 					);
 			case Game.GAME_WON:
-				return (<div className="game-wrapper" onClick={this.restartTheGame.bind(this)}>
+				return (<div className="game-wrapper">
 						<h1>Congratulations! You've just won! Now go out there and beat the shit outta this life!</h1>
-						<GameField gameField={this.state.gameField} />
+						<GameField gameField={this.state.gameField} handleClick={(e, i, j) => {
+							e.preventDefault();
+						}} handleContextClick={e => e.preventDefault()} />
+						<button onClick={
+							this.restartTheGame.bind(this)
+						}>Start new game</button>
 					</div>);
 			case Game.GAME_LOST:
-				return (<div className="game-wrapper" onClick={this.restartTheGame.bind(this)}>
+				return (<div className="game-wrapper">
 						<h1>I'm truly sorry to see you lose. But as an old saying goes: "Defeat is just a mere obstacle on a journey to success"</h1>
-						<GameField 
-							gameField={this.state.gameField}
-						/>
+						<GameField gameField={this.state.gameField} handleClick={(e, i, j) => {
+							e.preventDefault();
+						}} handleContextClick={e => e.preventDefault()} />
+						<button onClick={
+							this.restartTheGame.bind(this)
+						}>Start new game</button>
 					</div>);
 			case Game.GAME_NOTSTARTED:
 				let field = [];
