@@ -267,22 +267,33 @@ class Game extends React.Component {
 	}
 
 	handleClick (e, i, j) {
-		// let [i, j] = e.target.getAttribute('cellid').split('_').map(Number);
-		if (this.state.gameField[i][j].bomb) {
+		const field = this.state.gameField;
+		if (field[i][j].bomb && !field[i][j].status == Cell.CELL_FLAGGED) {
 			this.loseTheGame();
 		}
-		else if (this.state.gameField[i][j].status == Cell.CELL_OPENED) {
-			// check if its full, then propagate nearest cells
-			if (this.countInners(i, j) == 
-					this.getAdjEls(i, j).reduce((a, b) => a + (this.state.gameField[b[0]][b[1]].status == Cell.CELL_FLAGGED), 0)) {
-				this.getAdjEls(i, j).map(a => this.propagateCellClick(a[0], a[1]));
+		else if (field[i][j].status == Cell.CELL_OPENED) {
+			let adj = this.getAdjEls(i, j);
+			let obj = adj.reduce(function (a, [y, x]) {
+				if (field[y][x].bomb) {
+					a.bomb++;
+					if (field[y][x].status == Cell.CELL_FLAGGED) a.correct++;
+				}
+				else {
+					if (field[y][x].status == Cell.CELL_FLAGGED) a.incorrect++;
+				}
+				return a;
+			}, {
+				bomb: 0, correct: 0, incorrect: 0
+			});
+
+			if (obj.incorrect != 0){
+				this.loseTheGame();
 			}
-			else {
-				// check for correctness and lose if it's incorrect (there are more bombs, or they are in wrong places)
-				// this.loseTheGame();
+			else if (obj.bomb == obj.correct) {
+				adj.map(a => this.propagateCellClick(a[0], a[1]));
 			}
 		}
-		else if (this.state.gameField[i][j].status != Cell.CELL_FLAGGED) {
+		else if (field[i][j].status != Cell.CELL_FLAGGED) {
 			this.propagateCellClick(i, j);
 		}
 
