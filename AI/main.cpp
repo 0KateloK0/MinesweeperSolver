@@ -52,9 +52,10 @@ private:
     vector<vector<std::unordered_set<Bind>>> binds_field;
     const size_t WIDTH;
     const size_t HEIGHT;
-    const size_t AMOUNT_OF_BOMBS;
     vector<vector<bool>> const& bomb_field;
     vector<vector<cell_codes>> flag_field;
+    size_t remaining_bombs;
+    Bind global_bind;
 
     [[nodiscard]] vector<Cell> get_adj_els (size_t x, size_t y) const {
         vector<Cell> adj;
@@ -90,8 +91,12 @@ private:
     void generate_binds () {
         // add here a bind for every cell of the field. Just in case of situations where you need to see at the amount
         // of the bombs left
+        global_bind.body.clear();
+        global_bind.bombs = remaining_bombs;
         for (size_t i = 0; i < HEIGHT; ++i) {
             for (size_t j = 0; j < WIDTH; ++j) {
+                if (flag_field[i][j] == cell_codes::CELL_CLOSED)
+                    global_bind.body.insert(Cell(j, i));
                 if (flag_field[i][j] != cell_codes::CELL_OPENED) continue;
                 Bind b;
                 b.creator = Cell(j, i);
@@ -121,12 +126,13 @@ private:
 
     // checks if any binds are complete, and if so, destroys them, replacing with either bombs or open cells
     void propagate_binds () {
-
+        
     }
 
 public:
     Solver (size_t WIDTH, size_t HEIGHT, size_t AMOUNT_OF_BOMBS, vector<vector<bool>> const& bomb_field):
-        WIDTH(WIDTH), HEIGHT(HEIGHT), AMOUNT_OF_BOMBS(AMOUNT_OF_BOMBS), bomb_field(bomb_field),
+        WIDTH(WIDTH), HEIGHT(HEIGHT), bomb_field(bomb_field),
+        remaining_bombs (AMOUNT_OF_BOMBS),
         flag_field(HEIGHT, vector<cell_codes>(WIDTH, cell_codes::CELL_CLOSED)),
         binds_field(HEIGHT, vector<std::unordered_set<Bind>>(WIDTH)) {}
 
