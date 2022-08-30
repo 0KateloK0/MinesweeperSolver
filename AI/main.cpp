@@ -1,19 +1,100 @@
 #include <iostream>
 #include <vector>
 using std::vector;
-#include <array>
-using std::array;
+#include <unordered_set>
 
-struct Move {
+struct Cell {
     size_t x;
     size_t y;
+    Cell (size_t x, size_t y) : x(x), y(y) {}
+
+};
+
+template <>
+struct std::hash<Cell> {
+    std::size_t operator () (Cell const& cell) const noexcept {
+        return std::hash<size_t>{}(cell.x) ^ (std::hash<size_t>{}(cell.y) << 1);
+    }
+};
+
+struct Move {
+    Cell cell;
     bool right;
 };
 
-class Solver {
+struct Bind {
 public:
-    Solver (size_t WIDTH, size_t HEIGHT, size_t AMOUNT_OF_BOMBS, vector<vector<bool>> const& bomb_field, size_t x, size_t y) {}
-    void solve () {}
+    Cell creator;
+    std::unordered_set<Cell> body;
+};
+
+template <>
+struct std::hash<Bind> {
+    std::size_t operator () (Bind const& bind) const noexcept {
+        return std::hash<Cell>{}(bind.creator);
+    }
+};
+
+class Solver {
+private:
+    enum cell_codes {
+        CELL_CLOSED,
+        CELL_OPENED,
+        CELL_FLAGGED
+    };
+
+    std::unordered_set<Bind> binds;
+    const size_t WIDTH;
+    const size_t HEIGHT;
+    const size_t AMOUNT_OF_BOMBS;
+    vector<vector<bool>> const& bomb_field;
+    vector<vector<cell_codes>> flag_field;
+
+    [[nodiscard]] bool is_solved () const {
+        for (size_t i = 0; i < HEIGHT; ++i) {
+            for (size_t j = 0; j < WIDTH; ++j) {
+                if (flag_field[i][j] == cell_codes::CELL_CLOSED)
+                    return false;
+            }
+        }
+        return true;
+    }
+
+    // supposedly I won't need this function. Any binds with 0 remaining bombs should fill up immediately
+    // Although if a zero-bomb cell would be hit, this function probably should fire up, cause otherwise it'll look
+    // weird on the client side. Anyway writing BFS here probably wouldn't be so hard, we'll see
+    /*void propagate_click (size_t x, size_t y) {
+
+    }*/
+
+    // creates all the binds for the field
+    void generate_binds () {
+
+    }
+
+    // simplifies the binds according to my model
+    void simplify_binds () {
+
+    }
+
+    // checks if any binds are complete, and if so, destroys them, replacing with either bombs or open cells
+    void propagate_binds () {
+
+    }
+
+public:
+    Solver (size_t WIDTH, size_t HEIGHT, size_t AMOUNT_OF_BOMBS, vector<vector<bool>> const& bomb_field):
+        WIDTH(WIDTH), HEIGHT(HEIGHT), AMOUNT_OF_BOMBS(AMOUNT_OF_BOMBS), bomb_field(bomb_field),
+        flag_field(HEIGHT, vector<cell_codes>(WIDTH, cell_codes::CELL_CLOSED)) {}
+
+    void solve (size_t x, size_t y) {
+        size_t cycle_amount = 0;
+        while (!(solved = is_solved()) && cycle_amount < WIDTH * HEIGHT) {
+
+            ++cycle_amount;
+        }
+    }
+
     bool solved = false;
     vector<Move> history;
 };
@@ -44,8 +125,8 @@ int main(int argc, char** argv) {
     size_t x, y;
     std::cin >> x >> y;
 
-    Solver s(WIDTH, HEIGHT, AMOUNT_OF_BOMBS, bomb_field, x, y);
-    s.solve();
+    Solver s(WIDTH, HEIGHT, AMOUNT_OF_BOMBS, bomb_field);
+    s.solve(x, y);
 
     // if the AI fails to solve this field from those coordinates,
     // it will output phrase "failed\n" followed by program termination
@@ -62,7 +143,7 @@ int main(int argc, char** argv) {
     std::cout << "success\n";
 
     for (auto& move: s.history) {
-        std::cout << move.x << ',' << move.y << ',' << move.right << ';';
+        std::cout << move.cell.x << ',' << move.cell.y << ',' << move.right << ';';
     }
 
     std::cout << "e\n";
