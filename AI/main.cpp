@@ -4,10 +4,13 @@ using std::vector;
 #include <unordered_set>
 
 struct Cell {
-    size_t x;
-    size_t y;
+    size_t x = 0;
+    size_t y = 0;
     Cell (size_t x, size_t y) : x(x), y(y) {}
-
+    Cell () = default;
+    bool operator == (Cell const& right) const {
+        return x == right.x && y == right.y;
+    }
 };
 
 template <>
@@ -19,13 +22,16 @@ struct std::hash<Cell> {
 
 struct Move {
     Cell cell;
-    bool right;
+    bool right = false;
 };
 
 struct Bind {
-public:
     Cell creator;
-    std::unordered_set<Cell> body;
+    std::unordered_set<Cell> body {};
+    size_t bombs = 0;
+    bool operator == (Bind const& right) const {
+        return creator == right.creator && body == right.body && bombs == right.bombs;
+    }
 };
 
 template <>
@@ -43,12 +49,25 @@ private:
         CELL_FLAGGED
     };
 
-    std::unordered_set<Bind> binds;
+    vector<vector<std::unordered_set<Bind>>> binds_field;
     const size_t WIDTH;
     const size_t HEIGHT;
     const size_t AMOUNT_OF_BOMBS;
     vector<vector<bool>> const& bomb_field;
     vector<vector<cell_codes>> flag_field;
+
+    [[nodiscard]] vector<Cell> get_adj_els (size_t x, size_t y) const {
+        vector<Cell> adj;
+        if (y - 1 >= 0 && x - 1 >= 0) 			adj.emplace_back(Cell(x - 1, y - 1));
+        if (y - 1 >= 0) 						adj.emplace_back(Cell(x, y - 1));
+        if (y - 1 >= 0 && x + 1 < WIDTH) 		adj.emplace_back(Cell(x + 1, y - 1));
+        if (x - 1 >= 0) 						adj.emplace_back(Cell(x - 1, y));
+        if (x + 1 < WIDTH) 						adj.emplace_back(Cell(x + 1, y));
+        if (y + 1 < HEIGHT && x - 1 >= 0) 		adj.emplace_back(Cell(x - 1, y + 1));
+        if (y + 1 < HEIGHT) 					adj.emplace_back(Cell(x, y + 1));
+        if (y + 1 < HEIGHT && x + 1 < WIDTH) 	adj.emplace_back(Cell(x + 1, y + 1));
+        return adj;
+    }
 
     [[nodiscard]] bool is_solved () const {
         for (size_t i = 0; i < HEIGHT; ++i) {
@@ -63,13 +82,36 @@ private:
     // supposedly I won't need this function. Any binds with 0 remaining bombs should fill up immediately
     // Although if a zero-bomb cell would be hit, this function probably should fire up, cause otherwise it'll look
     // weird on the client side. Anyway writing BFS here probably wouldn't be so hard, we'll see
-    /*void propagate_click (size_t x, size_t y) {
+    void propagate_click (size_t x, size_t y) {
 
-    }*/
+    }
 
     // creates all the binds for the field
     void generate_binds () {
-
+        // add here a bind for every cell of the field. Just in case of situations where you need to see at the amount
+        // of the bombs left
+        for (size_t i = 0; i < HEIGHT; ++i) {
+            for (size_t j = 0; j < WIDTH; ++j) {
+                if (flag_field[i][j] != cell_codes::CELL_OPENED) continue;
+                Bind b;
+                b.creator = Cell(j, i);
+                auto adj = get_adj_els(j, i);
+                for (auto const& it: adj) {
+                    switch (flag_field[it.y][it.x]) {
+                        case cell_codes::CELL_CLOSED:
+                            b.body.insert(Cell(it.x, it.y));
+                            break;
+                        case cell_codes::CELL_FLAGGED:
+                            --b.bombs; // might cause overflow
+                            break;
+                        case cell_codes::CELL_OPENED:
+                            break;
+                    }
+                    if (bomb_field[it.y][it.x]) ++b.bombs;
+                }
+                binds_field[i][j].insert(b);
+            }
+        }
     }
 
     // simplifies the binds according to my model
@@ -85,12 +127,18 @@ private:
 public:
     Solver (size_t WIDTH, size_t HEIGHT, size_t AMOUNT_OF_BOMBS, vector<vector<bool>> const& bomb_field):
         WIDTH(WIDTH), HEIGHT(HEIGHT), AMOUNT_OF_BOMBS(AMOUNT_OF_BOMBS), bomb_field(bomb_field),
-        flag_field(HEIGHT, vector<cell_codes>(WIDTH, cell_codes::CELL_CLOSED)) {}
+        flag_field(HEIGHT, vector<cell_codes>(WIDTH, cell_codes::CELL_CLOSED)),
+        binds_field(HEIGHT, vector<std::unordered_set<Bind>>(WIDTH)) {}
 
     void solve (size_t x, size_t y) {
+        if (bomb_field[y][x]) return;
+        propagate_click(x, y);
+
         size_t cycle_amount = 0;
         while (!(solved = is_solved()) && cycle_amount < WIDTH * HEIGHT) {
-
+            generate_binds();
+            simplify_binds();
+            propagate_binds();
             ++cycle_amount;
         }
     }
