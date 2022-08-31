@@ -25,6 +25,7 @@ struct std::hash<Cell> {
 struct Move {
     Cell cell;
     bool right = false;
+    Move (Cell cell, bool right) : cell(cell), right(right) {}
 };
 
 struct Bind {
@@ -205,11 +206,33 @@ private:
 
     // checks if any binds are complete, and if so, destroys them, replacing with either bombs or open cells
     void propagate_binds () {
-
+        for (size_t i = 0; i < HEIGHT; ++i) {
+            for (size_t j = 0; j < WIDTH; ++j) {
+                auto current_cell = bind_map_field[i][j];
+                for (auto it: current_cell) {
+                    if (it->bombs == it->body.size() || it->bombs == 0) {
+                        for (auto cell: it->body) {
+                            if (flag_field[cell.y][cell.x] != cell_codes::CELL_CLOSED) continue;
+                            cell_codes new_status = it->bombs == 0 ? cell_codes::CELL_OPENED
+                                                                   : cell_codes::CELL_FLAGGED;
+                            flag_field[cell.y][cell.x] = new_status;
+                            history.push_back(Move(cell, it->bombs != 0));
+                        }
+                    }
+                }
+            }
+        }
     }
 
     void reset_everything () {
-        // delete every dynamically created bind
+        for (size_t i = 0; i < HEIGHT; ++i) {
+            for (size_t j = 0; j < WIDTH; ++j) {
+                for (auto it: bind_map_field[i][j]) {
+//                    delete it;
+                }
+                bind_map_field[i][j].clear();
+            }
+        }
     }
 
 public:
@@ -229,6 +252,7 @@ public:
             generate_binds();
             simplify_binds();
             propagate_binds();
+            reset_everything();
             ++cycle_amount;
         }
     }
