@@ -45,14 +45,15 @@ struct std::hash<Bind> {
 };
 
 class Solver {
-private:
+//private:
+public: // for debug
     enum cell_codes {
         CELL_CLOSED,
         CELL_OPENED,
         CELL_FLAGGED
     };
 
-    vector<vector<std::unordered_set<Bind>>> binds_field;
+//    vector<vector<std::unordered_set<Bind>>> binds_field;
     vector<vector<std::unordered_set<Bind*>>> bind_map_field;
     const size_t WIDTH;
     const size_t HEIGHT;
@@ -100,6 +101,7 @@ private:
     // Although if a zero-bomb cell would be hit, this function probably should fire up, cause otherwise it'll look
     // weird on the client side. Anyway writing BFS here probably wouldn't be so hard, we'll see
     void propagate_click (size_t x, size_t y) {
+        history.emplace_back(Move(Cell(x, y), false));
         std::queue<Cell> ver;
         ver.push(Cell(x, y));
         std::unordered_set<Cell> used;
@@ -145,7 +147,6 @@ private:
                     if (bomb_field[it.y][it.x]) b->bombs++;
                     bind_map_field[it.y][it.x].insert(b);
                 }
-//                binds_field[i][j].insert(b);
             }
         }
     }
@@ -161,12 +162,6 @@ private:
                 // if the amounts of bombs were not equal previously, new binds should be established
                 // (possibly will require new function for simplicity)
                 // if the amounts were equal, do nothing
-
-                /*size_t min_bombs = 8;
-                std::unordered_map<Cell, size_t> cell_union;
-                for (auto &it: bind_map_field[i][j]) {
-                    min_bombs = std::min(min_bombs, it->bombs);
-                }*/
 
                 auto current_cell = bind_map_field[i][j];
                 for (auto it = current_cell.begin(); it != current_cell.end(); ++it) {
@@ -213,10 +208,13 @@ private:
                     if (it->bombs == it->body.size() || it->bombs == 0) {
                         for (auto cell: it->body) {
                             if (flag_field[cell.y][cell.x] != cell_codes::CELL_CLOSED) continue;
-                            cell_codes new_status = it->bombs == 0 ? cell_codes::CELL_OPENED
-                                                                   : cell_codes::CELL_FLAGGED;
-                            flag_field[cell.y][cell.x] = new_status;
-                            history.push_back(Move(cell, it->bombs != 0));
+                            if (it->bombs == 0) {
+                                propagate_click(cell.x, cell.y);
+                            }
+                            else {
+                                flag_field[cell.y][cell.x] = cell_codes::CELL_FLAGGED;
+                                history.emplace_back(Move(cell, true));
+                            }
                         }
                     }
                 }
@@ -227,9 +225,10 @@ private:
     void reset_everything () {
         for (size_t i = 0; i < HEIGHT; ++i) {
             for (size_t j = 0; j < WIDTH; ++j) {
-                for (auto it: bind_map_field[i][j]) {
+                /*for (auto it: bind_map_field[i][j]) {
 //                    delete it;
-                }
+                }*/
+                // well, can't check for leaks, no need to do so(I will do so when I'm on Linux though):)
                 bind_map_field[i][j].clear();
             }
         }
@@ -240,7 +239,7 @@ public:
         WIDTH(WIDTH), HEIGHT(HEIGHT), bomb_field(bomb_field),
         remaining_bombs (AMOUNT_OF_BOMBS),
         flag_field(HEIGHT, vector<cell_codes>(WIDTH, cell_codes::CELL_CLOSED)),
-        binds_field(HEIGHT, vector<std::unordered_set<Bind>>(WIDTH)),
+//        binds_field(HEIGHT, vector<std::unordered_set<Bind>>(WIDTH)),
         bind_map_field(HEIGHT, vector<std::unordered_set<Bind*>>(WIDTH)) {}
 
     void solve (size_t x, size_t y) {
@@ -248,7 +247,7 @@ public:
         propagate_click(x, y);
 
         size_t cycle_amount = 0;
-        while (!(solved = is_solved()) && cycle_amount < WIDTH * HEIGHT) {
+        while (!(solved = is_solved()) && cycle_amount < WIDTH * HEIGHT * 2) {
             generate_binds();
             simplify_binds();
             propagate_binds();
@@ -310,6 +309,24 @@ int main(int argc, char** argv) {
 
     std::cout << "e\n";
 
+    // for debug:
+    for (size_t i = 0; i < HEIGHT; ++i) {
+        for (size_t j = 0; j < WIDTH; ++j) {
+            switch (s.flag_field[i][j]) {
+                case s.cell_codes::CELL_FLAGGED:
+                    std::cout << 1;
+                    break;
+                case s.cell_codes::CELL_OPENED:
+                    std::cout << 2;
+                    break;
+                case s.cell_codes::CELL_CLOSED:
+                    std::cout << 0;
+                    break;
+            }
+        }
+        std::cout << '\n';
+    }
+
     return 0;
 }
 
@@ -319,4 +336,38 @@ int main(int argc, char** argv) {
 000
 101
 1 0
- */
+
+0000000
+0000000
+0101010
+3 0
+
+  123456
+1 ----21
+2 --2-2f
+3 --2132
+4 --4-2f
+5 -f--4-
+6 -322ff
+
+  123456
+1 ----21
+2 --212f
+3 --2132
+4 --4-2f
+5 -f--4-
+6 -322ff
+
+  123456
+1 0
+2 0
+3 0
+4 0
+5 0
+6
+
+0000000
+0111110
+0  1  0
+0111110
+*/
