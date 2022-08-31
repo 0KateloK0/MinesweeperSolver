@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>MinesweeperSolver</title>
+	<style>
+		body {
+			margin: 0;
+		}
+		.__react-root {
+			position: absolute;
+			width: 100%;
+			text-align: center;
+			height: 100%;
+		}
+		.wrapper {
+			position: absolute;
+			width: 100%;
+			height: 100%;
+			padding: 10px;
+			box-sizing: border-box;
+		}
+		.field {
+			user-select: none;
+			display: grid;
+			width: fit-content;
+			/*transform: translate(-50%, -50%);
+			top: 50%;
+			left: 50%;*/
+			position: absolute;
+			font-size: 15px;
+			border: 2px solid black;
+		}
+		@font-face {
+			font-family: 'SigmarOne-Regular'; 
+			src: url(src/SigmarOne-Regular.ttf);
+		}
+		.field__cell {
+			width: 20px;
+			height: 20px;
+			background: black;
+			color: red;
+			font-size: 15px;
+			text-align: center;
+			font-family: 'SigmarOne-Regular';
+		}
+		.field__cell_opened {
+			background: white;
+		}
+		.field__cell_flagged {
+			background: url(src/flag.svg) no-repeat center;
+			background-size: 14px;
+		}
+		.field__cell_bombed {
+			background: url(src/bomb.svg) no-repeat center;
+			background-size: 14px;
+		}
+	</style>
+</head>
+<body>
+	<div class="__react-root"></div>
+	<script src="dist/bundle.js"></script>
+
+</body>
+</html>
