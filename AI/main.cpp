@@ -2,6 +2,8 @@
 #include <vector>
 using std::vector;
 #include <unordered_set>
+#include <unordered_map>
+#include <queue>
 
 struct Cell {
     size_t x = 0;
@@ -50,6 +52,7 @@ private:
     };
 
     vector<vector<std::unordered_set<Bind>>> binds_field;
+    vector<vector<std::unordered_set<Bind*>>> bind_map_field;
     const size_t WIDTH;
     const size_t HEIGHT;
     vector<vector<bool>> const& bomb_field;
@@ -59,15 +62,27 @@ private:
 
     [[nodiscard]] vector<Cell> get_adj_els (size_t x, size_t y) const {
         vector<Cell> adj;
-        if (y - 1 >= 0 && x - 1 >= 0) 			adj.emplace_back(Cell(x - 1, y - 1));
-        if (y - 1 >= 0) 						adj.emplace_back(Cell(x, y - 1));
-        if (y - 1 >= 0 && x + 1 < WIDTH) 		adj.emplace_back(Cell(x + 1, y - 1));
-        if (x - 1 >= 0) 						adj.emplace_back(Cell(x - 1, y));
-        if (x + 1 < WIDTH) 						adj.emplace_back(Cell(x + 1, y));
-        if (y + 1 < HEIGHT && x - 1 >= 0) 		adj.emplace_back(Cell(x - 1, y + 1));
-        if (y + 1 < HEIGHT) 					adj.emplace_back(Cell(x, y + 1));
-        if (y + 1 < HEIGHT && x + 1 < WIDTH) 	adj.emplace_back(Cell(x + 1, y + 1));
+        // because C++
+        int cx = static_cast<int>(x);
+        int cy = static_cast<int>(y);
+        if (cy - 1 >= 0 && cx - 1 >= 0) 			adj.emplace_back(Cell(cx - 1, cy - 1));
+        if (cy - 1 >= 0) 						    adj.emplace_back(Cell(cx, cy - 1));
+        if (cy - 1 >= 0 && cx + 1 < WIDTH) 		    adj.emplace_back(Cell(cx + 1, cy - 1));
+        if (cx - 1 >= 0) 						    adj.emplace_back(Cell(cx - 1, cy));
+        if (cx + 1 < WIDTH) 						adj.emplace_back(Cell(cx + 1, cy));
+        if (cy + 1 < HEIGHT && cx - 1 >= 0) 		adj.emplace_back(Cell(cx - 1, cy + 1));
+        if (cy + 1 < HEIGHT) 					    adj.emplace_back(Cell(cx, cy + 1));
+        if (cy + 1 < HEIGHT && cx + 1 < WIDTH) 	    adj.emplace_back(Cell(cx + 1, cy + 1));
         return adj;
+    }
+
+    [[nodiscard]] size_t count_inners (size_t x, size_t y) const {
+        auto vec = get_adj_els(x, y);
+        size_t res = 0;
+        for (auto cell: vec) {
+            if (bomb_field[cell.y][cell.x]) ++res;
+        }
+        return res;
     }
 
     [[nodiscard]] bool is_solved () const {
@@ -84,7 +99,21 @@ private:
     // Although if a zero-bomb cell would be hit, this function probably should fire up, cause otherwise it'll look
     // weird on the client side. Anyway writing BFS here probably wouldn't be so hard, we'll see
     void propagate_click (size_t x, size_t y) {
-
+        std::queue<Cell> ver;
+        ver.push(Cell(x, y));
+        std::unordered_set<Cell> used;
+        while (!ver.empty()) {
+            auto c = ver.front();
+            ver.pop();
+            if (used.find(c) != used.end()) continue;
+            used.insert(c);
+            if (flag_field[c.y][c.x] != cell_codes::CELL_CLOSED) continue;
+            flag_field[c.y][c.x] = cell_codes::CELL_OPENED;
+            if (count_inners(c.x, c.y) != 0) continue;
+            for (auto it: get_adj_els(c.x, c.y)) {
+                ver.push(it);
+            }
+        }
     }
 
     // creates all the binds for the field
@@ -98,35 +127,89 @@ private:
                 if (flag_field[i][j] == cell_codes::CELL_CLOSED)
                     global_bind.body.insert(Cell(j, i));
                 if (flag_field[i][j] != cell_codes::CELL_OPENED) continue;
-                Bind b;
-                b.creator = Cell(j, i);
+                auto b = new Bind();
+                b->creator = Cell(j, i);
                 auto adj = get_adj_els(j, i);
                 for (auto const& it: adj) {
                     switch (flag_field[it.y][it.x]) {
                         case cell_codes::CELL_CLOSED:
-                            b.body.insert(Cell(it.x, it.y));
+                            b->body.insert(Cell(it.x, it.y));
                             break;
                         case cell_codes::CELL_FLAGGED:
-                            --b.bombs; // might cause overflow
+                            b->bombs--; // might cause overflow
                             break;
                         case cell_codes::CELL_OPENED:
                             break;
                     }
-                    if (bomb_field[it.y][it.x]) ++b.bombs;
+                    if (bomb_field[it.y][it.x]) b->bombs++;
+                    bind_map_field[it.y][it.x].insert(b);
                 }
-                binds_field[i][j].insert(b);
+//                binds_field[i][j].insert(b);
             }
         }
     }
 
     // simplifies the binds according to my model
     void simplify_binds () {
+        auto bind_map_field_copy = bind_map_field;
+        for (size_t i = 0; i < HEIGHT; ++i) {
+            for (size_t j = 0; j < WIDTH; ++j) {
+                if (flag_field[i][j] != cell_codes::CELL_CLOSED) continue;
+                // choose the connection width the smallest amount of bombs
+                // then set everyone else's amount of bombs to be equal to it
+                // if the amounts of bombs were not equal previously, new binds should be established
+                // (possibly will require new function for simplicity)
+                // if the amounts were equal, do nothing
 
+                /*size_t min_bombs = 8;
+                std::unordered_map<Cell, size_t> cell_union;
+                for (auto &it: bind_map_field[i][j]) {
+                    min_bombs = std::min(min_bombs, it->bombs);
+                }*/
+
+                auto current_cell = bind_map_field[i][j];
+                for (auto it = current_cell.begin(); it != current_cell.end(); ++it) {
+                    for (auto cmp = it; cmp != current_cell.end(); ++cmp) {
+                        if (cmp == it) continue;
+                        // find intersection
+                        // correct binds
+                        std::unordered_set<Cell> intersection;
+                        for (auto cell_it : (*it)->body) {
+                            if ((*cmp)->body.find(cell_it) != (*cmp)->body.end()) {
+                                intersection.insert(cell_it);
+                            }
+                        }
+
+                        if (std::min((*it)->bombs, (*cmp)->bombs) >= intersection.size()
+                            || (*it)->bombs == (*cmp)->bombs) continue;
+
+                        auto max_bombs_it = (*it)->bombs > (*cmp)->bombs ? it : cmp;
+                        auto min_bombs_it = (*it)->bombs < (*cmp)->bombs ? it : cmp;
+                        (*max_bombs_it)->bombs -= (*min_bombs_it)->bombs;
+
+                        auto b = new Bind();
+                        b->creator = (*max_bombs_it)->creator;
+                        b->bombs = (*min_bombs_it)->bombs;
+                        b->body = intersection;
+                        for (auto int_it : intersection) {
+                            (*max_bombs_it)->body.erase(int_it);
+                        }
+                        bind_map_field_copy[i][j].erase(*max_bombs_it);
+                        bind_map_field_copy[i][j].insert(b);
+                    }
+                }
+            }
+        }
+        bind_map_field = bind_map_field_copy;
     }
 
     // checks if any binds are complete, and if so, destroys them, replacing with either bombs or open cells
     void propagate_binds () {
-        
+
+    }
+
+    void reset_everything () {
+        // delete every dynamically created bind
     }
 
 public:
@@ -134,7 +217,8 @@ public:
         WIDTH(WIDTH), HEIGHT(HEIGHT), bomb_field(bomb_field),
         remaining_bombs (AMOUNT_OF_BOMBS),
         flag_field(HEIGHT, vector<cell_codes>(WIDTH, cell_codes::CELL_CLOSED)),
-        binds_field(HEIGHT, vector<std::unordered_set<Bind>>(WIDTH)) {}
+        binds_field(HEIGHT, vector<std::unordered_set<Bind>>(WIDTH)),
+        bind_map_field(HEIGHT, vector<std::unordered_set<Bind*>>(WIDTH)) {}
 
     void solve (size_t x, size_t y) {
         if (bomb_field[y][x]) return;
@@ -204,3 +288,11 @@ int main(int argc, char** argv) {
 
     return 0;
 }
+
+// tests:
+/*
+000
+000
+101
+1 0
+ */
