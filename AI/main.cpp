@@ -234,6 +234,27 @@ public: // for debug
         }
     }
 
+    void print_flag_field () const {
+        // for debug:
+        for (size_t i = 0; i < HEIGHT; ++i) {
+            for (size_t j = 0; j < WIDTH; ++j) {
+                switch (flag_field[i][j]) {
+                    case cell_codes::CELL_CLOSED:
+                        std::cout << 0;
+                        break;
+                    case cell_codes::CELL_FLAGGED:
+                        std::cout << 1;
+                        break;
+                    case cell_codes::CELL_OPENED:
+                        std::cout << 2;
+                        break;
+                }
+            }
+            std::cout << '\n';
+        }
+        std::cout << '\n';
+    }
+
 public:
     Solver (size_t WIDTH, size_t HEIGHT, size_t AMOUNT_OF_BOMBS, vector<vector<bool>> const& bomb_field):
         WIDTH(WIDTH), HEIGHT(HEIGHT), bomb_field(bomb_field),
@@ -247,11 +268,12 @@ public:
         propagate_click(x, y);
 
         size_t cycle_amount = 0;
-        while (!(solved = is_solved()) && cycle_amount < WIDTH * HEIGHT * 2) {
+        while (!(solved = is_solved()) && cycle_amount < 10) { // WIDTH * HEIGHT
             generate_binds();
             simplify_binds();
             propagate_binds();
             reset_everything();
+            print_flag_field();
             ++cycle_amount;
         }
     }
@@ -309,24 +331,6 @@ int main(int argc, char** argv) {
 
     std::cout << "e\n";
 
-    // for debug:
-    for (size_t i = 0; i < HEIGHT; ++i) {
-        for (size_t j = 0; j < WIDTH; ++j) {
-            switch (s.flag_field[i][j]) {
-                case s.cell_codes::CELL_FLAGGED:
-                    std::cout << 1;
-                    break;
-                case s.cell_codes::CELL_OPENED:
-                    std::cout << 2;
-                    break;
-                case s.cell_codes::CELL_CLOSED:
-                    std::cout << 0;
-                    break;
-            }
-        }
-        std::cout << '\n';
-    }
-
     return 0;
 }
 
@@ -370,4 +374,16 @@ int main(int argc, char** argv) {
 0111110
 0  1  0
 0111110
+
+0000100010
+0000100000
+0000100011
+0000000001
+1000001000
+0101001100
+0100001000
+0000000010
+0000100100
+1100000000
+2 2
 */
