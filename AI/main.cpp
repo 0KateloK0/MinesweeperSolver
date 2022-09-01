@@ -273,7 +273,7 @@ public:
             simplify_binds();
             propagate_binds();
             reset_everything();
-            print_flag_field();
+//            print_flag_field();
             ++cycle_amount;
         }
     }
@@ -313,10 +313,10 @@ int main(int argc, char** argv) {
 
     // if the AI fails to solve this field from those coordinates,
     // it will output phrase "failed\n" followed by program termination
-    if (!s.solved) {
+    /*if (!s.solved) {
         std::cout << "failed\n";
         return 0;
-    }
+    }*/
 
     // if the AI succeeds, it will output phrase "success\n" followed by coordinates of all clicked cells in the next format:
     // "{x coordinate},{y coordinate},{1 if it was right click and 0 if it was left}"
@@ -386,4 +386,16 @@ int main(int argc, char** argv) {
 0000100100
 1100000000
 2 2
+
+1001100000
+1000001000
+1010000100
+0001100000
+0001000000
+0000000000
+0010000010
+0000000110
+1100010110
+0000000000
+9 0
 */

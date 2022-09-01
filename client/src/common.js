@@ -154,3 +154,19 @@ export function GameField (props) {
 			{ field }
 		</div>);
 }
+
+export network = {
+	checkField (field, x, y) {
+		let request_body = new FormData();
+		request_body.append('field', field.reduce((a, b) => a + (b.bomb ? '1' : '0'), ''));
+		// request_body.append('width', )
+
+		let response = await fetch ('/check_field', {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'form/multipart'
+			},
+			body: request_body
+		});
+	}
+};
