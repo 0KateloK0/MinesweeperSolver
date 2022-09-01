@@ -1,4 +1,5 @@
 from flask import Flask, send_from_directory, render_template, request, make_response
+import subprocess
 
 CLIENT_FOLDER = '../client'
 EXE_PATH = '../AI/cmake-build-debug/MinesweeperAI.exe'
@@ -15,7 +16,8 @@ def files(path):
 
 @app.route('/check_field')
 def check_field_route():
-	if request.method != 'POST': return make_response('Only POST requests are allowed', 400)
+	if request.method != 'POST':
+		return make_response('Only POST requests are allowed', 400)
 
 	field = request.form["field"]
 	width = request.form["width"]
@@ -25,21 +27,21 @@ def check_field_route():
 	start_y = request.form["start_y"]
 
 
+	AI_process = subprocess.Popen([EXE_PATH, str(width), str(height), str(bombs)], 
+			stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+	try:
+		AI_output, AI_errors = AI_process.communicate(
+				input=field+'\n'+str(start_x)+'\n'+str(start_y), timeout=2)
 
-	# try:
+		return make_response(AI_output, 200)
 
-	# 	process = subprocess.run(EXE_PATH, 
-	# 		stdin=field+'\n'+str(start_x)+'\n'+str(start_y), stdout=subprocess.PIPE, timeout=2)
-
-	# 	got = process.stdout.decode().split()
-	# 	obj['got'] = got
-	# 	obj['status'] = 'OK' if got == expected else 'WA'
-	# except subprocess.TimeoutExpired:
-	# 	obj['status'] = 'TL'
-	# except OSError:
-	# 	obj['status'] = 'ER'
-	# subprocess code, going to AI.exe
-
+		# got = process.stdout.decode().split()
+	except subprocess.TimeoutExpired:
+		AI_process.kill()
+		return make_response('failure', 200)
+	except OSError:
+		AI_process.kill()
+		return make_response('failure', 200)
 
 if __name__ == '__main__':
 	app.run(host='0.0.0.0', localhost=5000, debug=True)
