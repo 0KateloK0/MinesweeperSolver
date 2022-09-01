@@ -58,11 +58,18 @@ export default class Game extends React.Component {
 		});
 	}
 
+	checkSolvability (field, i, j) {
+		let netObj = new com.network(this.width, 
+				this.height, this.bombsAmount);
+		return netObj.checkField(field, i, j);
+	}
+
 	startTheGame (i, j) {
 		let gameField;
 		do {
 			gameField = this.generateField();
-		} while (gameField[i][j].bomb || this.countInners(i, j, gameField) != 0);
+		} while (gameField[i][j].bomb || this.countInners(i, j, gameField) != 0 ||
+			!this.checkSolvability(gameField, i, j));
 
 		this.setState({
 			gameField: com.propagateCellClick(gameField, i, j),

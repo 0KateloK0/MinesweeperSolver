@@ -1,6 +1,6 @@
 import React from 'react'
 import ReactDOM from 'react-dom';
-import * as common from './common.js';
+import * as com from './common.js';
 import Game from './player-game.js';
 import './AI-game.js';
 
@@ -15,7 +15,7 @@ class App extends React.Component {
 			height: 10,
 			bombsAmount: 20,
 			solver: App.SOLVER_PLAYER,
-			gameStarted: false,
+			gameStarted: true,
 			incorrect_input: false
 		};
 	}
@@ -85,6 +85,7 @@ class App extends React.Component {
 									gameStarted: true
 								})
 							}
+
 						}).bind(this)
 					}>Start new game</button>
 				</div>

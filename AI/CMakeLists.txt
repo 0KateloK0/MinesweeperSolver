@@ -4,4 +4,6 @@ project(MinesweeperAI)
 
 set(CMAKE_CXX_STANDARD 17)
 
-add_executable(MinesweeperAI main.cpp)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static")
+
+add_executable(AI.exe main.cpp)

@@ -155,18 +155,36 @@ export function GameField (props) {
 		</div>);
 }
 
-export network = {
-	checkField (field, x, y) {
-		let request_body = new FormData();
-		request_body.append('field', field.reduce((a, b) => a + (b.bomb ? '1' : '0'), ''));
-		// request_body.append('width', )
-
-		let response = await fetch ('/check_field', {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'form/multipart'
-			},
-			body: request_body
-		});
+export class network {
+	constructor (width, height, bombsAmount) {
+		this.width = width;
+		this.height = height;
+		this.bombsAmount = bombsAmount;
 	}
-};
+	changeValues (name, value) {
+		this[name] = value; // later remake this shit..
+	}
+	async checkField (field, x, y) {
+		let request_URL = new URL('http://localhost:5000/check_field');
+		request_URL.searchParams.append('field', field.reduce(
+				(a, b) => a + b.reduce(
+					(c, d) => c + (d.bomb ? '1' : '0'), '') + '\n',
+					 ''));
+		request_URL.searchParams.append('width', this.width);
+		request_URL.searchParams.append('height', this.height);
+		request_URL.searchParams.append('bombsAmount', this.bombsAmount);
+		request_URL.searchParams.append('start_x', x);
+		request_URL.searchParams.append('start_y', y);
+
+
+		let response = await fetch (request_URL).then(response => response.text()).then(response => {
+			console.log(response);
+			return response;
+		})
+
+		console.log(response);
+	}
+	solveField (field, x, y) {
+
+	}
+}

@@ -2,7 +2,7 @@ from flask import Flask, send_from_directory, render_template, request, make_res
 import subprocess
 
 CLIENT_FOLDER = '../client'
-EXE_PATH = '../AI/cmake-build-debug/MinesweeperAI.exe'
+EXE_PATH = '../AI/cmake-build-release/AI.exe'
 
 app = Flask(__name__, static_folder=CLIENT_FOLDER, template_folder=CLIENT_FOLDER)
 
@@ -16,22 +16,18 @@ def files(path):
 
 @app.route('/check_field')
 def check_field_route():
-	if request.method != 'POST':
-		return make_response('Only POST requests are allowed', 400)
-
-	field = request.form["field"]
-	width = request.form["width"]
-	height = request.form["height"]
-	bombs = request.form["bombs"]
-	start_x = request.form["start_x"]
-	start_y = request.form["start_y"]
-
+	field = request.args.get('field', None)
+	width = request.args.get('width', None)
+	height = request.args.get('height', None)
+	bombs = request.args.get('bombsAmount', None)
+	start_x = request.args.get('start_x', None)
+	start_y = request.args.get('start_y', None)
 
 	AI_process = subprocess.Popen([EXE_PATH, str(width), str(height), str(bombs)], 
 			stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 	try:
 		AI_output, AI_errors = AI_process.communicate(
-				input=field+'\n'+str(start_x)+'\n'+str(start_y), timeout=2)
+				input=bytes(field+'\n'+str(start_x)+'\n'+str(start_y), 'utf-8'), timeout=2)
 
 		return make_response(AI_output, 200)
 
