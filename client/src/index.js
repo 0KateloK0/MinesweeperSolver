@@ -15,7 +15,7 @@ class App extends React.Component {
 			height: 10,
 			bombsAmount: 20,
 			solver: App.SOLVER_PLAYER,
-			gameStarted: true,
+			gameStarted: false,
 			incorrect_input: false
 		};
 	}

@@ -37,6 +37,15 @@ struct Bind {
     }
 };
 
+std::ostream& operator <<(std::ostream& cout, Bind const& right) {
+    cout << right.creator.x << ' ' << right.creator.y << '\n';
+    for (auto it: right.body) {
+        cout << it.x << ' ' << it.y << ';';
+    }
+    cout << '\n' << right.bombs << std::endl;
+    return cout;
+}
+
 template <>
 struct std::hash<Bind> {
     std::size_t operator () (Bind const& bind) const noexcept {
@@ -49,8 +58,8 @@ class Solver {
 public: // for debug
     enum cell_codes {
         CELL_CLOSED,
-        CELL_OPENED,
-        CELL_FLAGGED
+        CELL_FLAGGED,
+        CELL_OPENED
     };
 
 //    vector<vector<std::unordered_set<Bind>>> binds_field;
@@ -127,8 +136,10 @@ public: // for debug
         global_bind.bombs = remaining_bombs;
         for (size_t i = 0; i < HEIGHT; ++i) {
             for (size_t j = 0; j < WIDTH; ++j) {
-                if (flag_field[i][j] == cell_codes::CELL_CLOSED)
+                if (flag_field[i][j] == cell_codes::CELL_CLOSED) {
                     global_bind.body.insert(Cell(j, i));
+                    bind_map_field[i][j].insert(&global_bind);
+                }
                 if (flag_field[i][j] != cell_codes::CELL_OPENED) continue;
                 auto b = new Bind();
                 b->creator = Cell(j, i);
@@ -153,9 +164,13 @@ public: // for debug
 
     // simplifies the binds according to my model
     void simplify_binds () {
+        bool ok = true;
         auto bind_map_field_copy = bind_map_field;
         for (size_t i = 0; i < HEIGHT; ++i) {
             for (size_t j = 0; j < WIDTH; ++j) {
+                /*if (i == 8 && j == 5) {
+                    std::cout << "MASLINA\n";
+                }*/
                 if (flag_field[i][j] != cell_codes::CELL_CLOSED) continue;
                 // choose the connection width the smallest amount of bombs
                 // then set everyone else's amount of bombs to be equal to it
@@ -177,10 +192,23 @@ public: // for debug
                         }
 
                         if (std::min((*it)->bombs, (*cmp)->bombs) >= intersection.size()
-                            || (*it)->bombs == (*cmp)->bombs) continue;
+                            ) continue;
 
-                        auto max_bombs_it = (*it)->bombs > (*cmp)->bombs ? it : cmp;
-                        auto min_bombs_it = (*it)->bombs < (*cmp)->bombs ? it : cmp;
+                        auto max_bombs_it = it;
+                        auto min_bombs_it = cmp;
+
+                        if (intersection == (*it)->body || intersection == (*cmp)->body) {
+                            min_bombs_it = intersection == (*it)->body ? it : cmp;
+                            max_bombs_it = intersection != (*it)->body ? it : cmp;
+                        }
+                        else {
+//                            continue;
+                            if ((*it)->bombs == (*cmp)->bombs) continue;
+                            max_bombs_it = (*it)->bombs > (*cmp)->bombs ? it : cmp;
+                            min_bombs_it = (*it)->bombs > (*cmp)->bombs ? cmp : it;
+                            if ((*max_bombs_it)->bombs != intersection.size()) continue;
+                        }
+
                         (*max_bombs_it)->bombs -= (*min_bombs_it)->bombs;
 
                         auto b = new Bind();
@@ -189,11 +217,17 @@ public: // for debug
                         b->body = intersection;
                         for (auto int_it : intersection) {
                             (*max_bombs_it)->body.erase(int_it);
+                            bind_map_field_copy[int_it.y][int_it.x].erase(*max_bombs_it);
+                            bind_map_field_copy[int_it.y][int_it.x].insert(b);
                         }
-                        bind_map_field_copy[i][j].erase(*max_bombs_it);
-                        bind_map_field_copy[i][j].insert(b);
+//                        bind_map_field_copy[i][j].erase(*max_bombs_it);
+//                        bind_map_field_copy[i][j].insert(b);
                     }
                 }
+                /*if ((*bind_map_field_copy[8][4].begin())->bombs == 0 && ok) {
+                    std::cout << i << ' ' << j << '\n';
+                    ok = false;
+                }*/
             }
         }
         bind_map_field = bind_map_field_copy;
@@ -238,7 +272,8 @@ public: // for debug
         // for debug:
         for (size_t i = 0; i < HEIGHT; ++i) {
             for (size_t j = 0; j < WIDTH; ++j) {
-                switch (flag_field[i][j]) {
+                std::cout << flag_field[i][j];
+                /*switch (flag_field[i][j]) {
                     case cell_codes::CELL_CLOSED:
                         std::cout << 0;
                         break;
@@ -248,11 +283,11 @@ public: // for debug
                     case cell_codes::CELL_OPENED:
                         std::cout << 2;
                         break;
-                }
+                }*/
             }
             std::cout << '\n';
         }
-        std::cout << '\n';
+        std::cout << std::endl;
     }
 
 public:
@@ -263,17 +298,48 @@ public:
 //        binds_field(HEIGHT, vector<std::unordered_set<Bind>>(WIDTH)),
         bind_map_field(HEIGHT, vector<std::unordered_set<Bind*>>(WIDTH)) {}
 
+    void debug () {
+        std::cout << "4,8:\n";
+        for (auto it: bind_map_field[8][4])
+            std::cout << (*it);
+        std::cout << "4,7:\n";
+        for (auto it: bind_map_field[7][4])
+            std::cout << (*it);
+        std::cout << "4,6:\n";
+        for (auto it: bind_map_field[6][4])
+            std::cout << (*it);
+        std::cout << "5,8:\n";
+        for (auto it: bind_map_field[8][5])
+            std::cout << (*it);
+        std::cout << "6,8:\n";
+        for (auto it: bind_map_field[8][6])
+            std::cout << (*it);
+        std::cout << "7,8:\n";
+        for (auto it: bind_map_field[8][7])
+            std::cout << (*it);
+        std::cout << std::endl;
+    }
+
     void solve (size_t x, size_t y) {
         if (bomb_field[y][x]) return;
         propagate_click(x, y);
 
         size_t cycle_amount = 0;
-        while (!(solved = is_solved()) && cycle_amount < 10) { // WIDTH * HEIGHT
+        while (!(solved = is_solved()) && cycle_amount < 20) { // WIDTH * HEIGHT
             generate_binds();
+            /*if (cycle_amount == 1)
+            debug();*/
+
             simplify_binds();
+            /*if (cycle_amount == 1)
+            debug();*/
+
             propagate_binds();
+
+//            debug();
+
             reset_everything();
-//            print_flag_field();
+            print_flag_field();
             ++cycle_amount;
         }
     }
@@ -398,4 +464,104 @@ int main(int argc, char** argv) {
 1100010110
 0000000000
 9 0
+
+1000001000
+0100000100
+0010000000
+0110000100
+0000000000
+0100001000
+1100001100
+0000100010
+1011000010
+0000000000
+3 5
+
+1000000010
+1100000000
+1110100100
+0010000000
+0000000010
+0010000000
+1100100000
+0000110100
+0100100000
+0000000000
+5 4
+
+0101001000
+0000111010
+0001000000
+1001100000
+0000010000
+0010100000
+0000000000
+0110000000
+1000110010
+0000000000
+7 3
+
+1100000000
+1001110000
+0000000000
+0010000100
+1011000100
+0000000000
+0011000000
+0000100110
+0001001100
+0000000000
+5 4
+
+global_bind:
+0011000000
+1000100000
+0000000000
+0100000100
+0000000100
+0110000010
+1100110010
+0010000010
+0110001000
+0000000000
+4 4
+
+weird intersection shenanigans
+1001011100
+0100000000
+0001010000
+0110000000
+0001000110
+0100000000
+0100010000
+1000000000
+0001000110
+0000000000
+5 4
+
+just weird one
+0000000100
+0010000100
+0100000000
+0110000000
+0110001000
+0010000000
+1101001100
+1000000010
+0001001010
+0000000000
+4 3
+
+incorrect
+0110100100
+0001000100
+0000001000
+1000001000
+0010000100
+0001010100
+1010000000
+0010001000
+1000000010
+0000000000
+4 3
 */

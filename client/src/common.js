@@ -178,7 +178,7 @@ export class network {
 
 
 		let response = await fetch (request_URL).then(response => response.text()).then(response => {
-			console.log(response);
+			// console.log(response);
 			return response;
 		})
 
