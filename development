@@ -1,0 +1,4 @@
+source virt/bin/activate
+export FLASK_APP=main.py
+flask --debug run
+
