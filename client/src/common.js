@@ -148,7 +148,8 @@ export function GameField (props) {
 	return (
 		<div className="field" 
 			style={{
-				gridTemplateColumns: `repeat(${width}, 1fr)`
+				gridTemplateColumns: `repeat(${width}, 1fr)`,
+				height: `${height * 20}px`
 			}}
 		>
 			{ field }

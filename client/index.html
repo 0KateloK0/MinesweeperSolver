@@ -14,24 +14,69 @@
 			text-align: center;
 			height: 100%;
 		}
-		.wrapper {
+		.app-wrapper {
 			position: absolute;
 			width: 100%;
 			height: 100%;
 			padding: 10px;
 			box-sizing: border-box;
 		}
+		.game-wrapper {
+			text-align: center;
+			display: grid;
+			grid-template-columns: 1fr 1fr;
+			grid-template-rows: auto 1fr auto;
+			grid-template-areas: "header header" 
+								"field history"
+								"hint hint";
+		}
+		.game__header {
+			grid-area: header;
+			margin: 0;
+			font-size: 20px;
+			font-family: 'OpenSans';
+		}
+		.game__field-wrapper {
+			grid-area: field;
+			display: flex;
+			justify-content: space-around;
+		}
+		.history {
+			grid-area: history;
+			overflow: scroll;
+		}
+		.game__start-button {
+			box-sizing: border-box;
+			border: 0;
+			padding: 7px 20px;
+			border-radius: 15px;
+			cursor: pointer;
+			font-family: 'OpenSans';
+		}
+		.game__start-button:active {
+			background: black;
+			color: white;
+		}
+		.game__hint {
+			game-area: hint;
+			font-family: 'OpenSans';
+		}
+		.history__move {
+			font-family: 'OpenSans';
+		}
 		.field {
 			user-select: none;
 			display: grid;
 			width: fit-content;
-			/*transform: translate(-50%, -50%);
-			top: 50%;
-			left: 50%;*/
-			position: absolute;
+			margin: 0;
 			font-size: 15px;
 			border: 2px solid black;
 		}
+		@font-face {
+			font-family: 'OpenSans';
+			src: url('src/OpenSans-Regular.ttf');
+		}
+
 		@font-face {
 			font-family: 'SigmarOne-Regular'; 
 			src: url(src/SigmarOne-Regular.ttf);

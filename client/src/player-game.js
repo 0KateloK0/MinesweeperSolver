@@ -1,6 +1,13 @@
 import React from 'react';
 import * as com from './common.js';
 
+function History (props) {
+	let moves = props.moves.map((a, i) => {
+		return (<div className="history__move" key={i}>{a.x},{a.y}</div>);
+	});
+	return (<div className="history">{moves}</div>);
+}
+
 export default class Game extends React.Component {
 	static GAME_NOTSTARTED = 0;
 	static GAME_GOING = 1;
@@ -13,7 +20,9 @@ export default class Game extends React.Component {
 			gameField: [],
 			remainingBombs: 0,
 			remainingCells: 0,
-			status: Game.GAME_NOTSTARTED
+			status: Game.GAME_NOTSTARTED,
+			moves: [],
+			history: [],
 		}
 
 		this.width = props.width;
@@ -75,6 +84,7 @@ export default class Game extends React.Component {
 			gameField: com.propagateCellClick(gameField, i, j),
 			status: Game.GAME_GOING,
 			remainingBombs: this.bombsAmount,
+			moves: this.state.moves.slice().concat({x: j, y: i, flag: false}),
 			// remainingCells: this.width * this.height,
 		});
 	}
@@ -108,22 +118,25 @@ export default class Game extends React.Component {
 	winTheGame () {
 		// actually nothing should be done here:)
 		this.setState({
-			status: Game.GAME_WON
+			status: Game.GAME_WON,
 		});
 	}
 
 	restartTheGame (i, j) {
 		this.setState({
-			status: Game.GAME_NOTSTARTED
+			status: Game.GAME_NOTSTARTED,
+			history: []
 		});
 	}
 
 	handleClick (e, i, j) {
 		const field = this.state.gameField;
 		if (field[i][j].bomb && !(field[i][j].status == com.Cell.CELL_FLAGGED)) {
+			this.setState({ moves: this.state.moves.slice().concat({x: j, y: i, flag: false}) });
 			this.loseTheGame();
 		}
 		else if (field[i][j].status == com.Cell.CELL_OPENED) {
+			this.setState({ moves: this.state.moves.slice().concat({x: j, y: i, flag: false}) });
 			let adj = this.getAdjEls(i, j);
 			let obj = adj.reduce(function (a, [y, x]) {
 				if (field[y][x].bomb) {
@@ -146,6 +159,7 @@ export default class Game extends React.Component {
 			}
 		}
 		else if (field[i][j].status != com.Cell.CELL_FLAGGED) {
+			this.setState({ moves: this.state.moves.slice().concat({x: j, y: i, flag: false}) });
 			this.propagateCellClick(i, j);
 		}
 
@@ -168,6 +182,7 @@ export default class Game extends React.Component {
 		}
 
 		this.setState({
+			moves: this.state.moves.slice().concat({x: j, y: i, flag: true}),
 			gameField: cpy,
 			remainingBombs: remBCPY,
 		});
@@ -183,30 +198,29 @@ export default class Game extends React.Component {
 				return (
 					<div className="game-wrapper">
 						<com.Info remainingBombs={this.state.remainingBombs}/>
-						<com.GameField 
-							gameField={this.state.gameField}
-							handleClick={this.handleClick.bind(this)}
-							handleContextClick={this.handleContextClick.bind(this)}
-							/>
+						<div className="game__field-wrapper">
+							<com.GameField 
+								gameField={this.state.gameField}
+								handleClick={this.handleClick.bind(this)}
+								handleContextClick={this.handleContextClick.bind(this)}
+								/>
+						</div>
+						<History moves={this.state.moves}/>
 					</div>
 					);
 			case Game.GAME_WON:
-				return (<div className="game-wrapper">
-						<h1>Congratulations! You've just won! Now go out there and beat the shit outta this life!</h1>
-						<com.GameField gameField={this.state.gameField} handleClick={(e, i, j) => {
-							e.preventDefault();
-						}} handleContextClick={e => e.preventDefault()} />
-						<button onClick={
-							this.restartTheGame.bind(this)
-						}>Start new game</button>
-					</div>);
 			case Game.GAME_LOST:
 				return (<div className="game-wrapper">
-						<h1>I'm truly sorry to see you lose. But as an old saying goes: "Defeat is just a mere obstacle on a journey to success"</h1>
-						<com.GameField gameField={this.state.gameField} handleClick={(e, i, j) => {
-							e.preventDefault();
-						}} handleContextClick={e => e.preventDefault()} />
-						<button onClick={
+						<h1 className="game__header">{this.state.status == Game.GAME_WON ? 
+							'Congratulations! You\'ve just won! Now go out there and beat the shit outta this life!' :
+							'I\'m truly sorry to see you lose. But as an old saying goes: "Defeat is just a mere obstacle on a journey to success"'
+						}</h1>
+						<div className="game__field-wrapper">
+							<com.GameField gameField={this.state.gameField} handleClick={(e, i, j) => {
+								e.preventDefault();
+							}} handleContextClick={e => e.preventDefault()} />
+						</div>
+						<button className="game__start-button" onClick={
 							this.restartTheGame.bind(this)
 						}>Start new game</button>
 					</div>);
@@ -218,11 +232,14 @@ export default class Game extends React.Component {
 						field[i].push(<com.Cell i={i} j={j} key={`${i}_${j}`}/>);
 				}
 				return (<div className="game-wrapper">
-						<h1>Lettuce begin{/*Shall we begin?*/}</h1>
-						<com.GameField gameField={field} handleClick={(e, i, j) => {
-							e.preventDefault();
-							this.startTheGame(i, j);
-						}} handleContextClick={e => e.preventDefault()}/>
+						<h1 className="game__header" >Lettuce begin</h1>
+						<div className="game__field-wrapper">
+							<com.GameField gameField={field} handleClick={(e, i, j) => {
+								e.preventDefault();
+								this.startTheGame(i, j);
+							}} handleContextClick={e => e.preventDefault()}/>
+						</div>
+						<span className="game__hint">Click anywhere on the field</span>
 					</div>);
 		}
 	}

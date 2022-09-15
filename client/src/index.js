@@ -1,8 +1,8 @@
-import React from 'react'
+import React from 'react';
 import ReactDOM from 'react-dom';
 import * as com from './common.js';
 import Game from './player-game.js';
-import './AI-game.js';
+// import './AI-game.js';
 
 class App extends React.Component {
 	static SOLVER_PLAYER = 0;
@@ -26,21 +26,21 @@ class App extends React.Component {
 		if (this.state.gameStarted) {
 			if (this.state.solver == App.SOLVER_PLAYER) {
 				return (
-					<div className="wrapper">
-						<Game width={this.state.width} height={this.state.height} bombsAmount={this.state.bombsAmount} />
+					<div className="app-wrapper">
+						<Game width={this.state.width} height={this.state.height} bombsAmount={this.state.bombsAmount}  />
 					</div>
 				);
 			}
-			else {
+			/*else {
 				return <div className="wrapper">
 
 				</div>;
 				// make AI-interface
-			}
+			}*/
 		}
 		else {
 			return (
-				<div className="wrapper">
+				<div className="app-wrapper">
 					<input type="number" onChange={
 						(e => {
 							this.setState({
@@ -68,12 +68,12 @@ class App extends React.Component {
 					<input type="checkbox" onChange={
 						(e => {
 							this.setState({
-								solver: e.target.value ? App.SOLVER_AI : App.SOLVER_PLAYER,
+								// solver: e.target.value ? App.SOLVER_AI : App.SOLVER_PLAYER,
 								incorrect_input: false,
 							});
 						}).bind(this)
 					} value={this.state.solver == App.SOLVER_PLAYER} />
-					<button onClick={
+					<button className="game__start-button" onClick={
 						(e => {
 							if (!this.checkInputs()) {
 								this.setState({
