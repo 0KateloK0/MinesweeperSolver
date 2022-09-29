@@ -116,7 +116,6 @@ export default class Game extends React.Component {
 	}
 
 	winTheGame () {
-		// actually nothing should be done here:)
 		this.setState({
 			status: Game.GAME_WON,
 		});
